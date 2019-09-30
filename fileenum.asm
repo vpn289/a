@@ -60,95 +60,23 @@ entry start
          call  [GetLastError]
          cmp   al,0b7h ;already exist
 
-
- ;-------------------
-         mov   rsi,simples
-         mov   rax,[lowpart]
-         mov   [lowpart_save],rax
-again:
-
-         mov rdx,[highpart]
-         mov rax,[lowpart_save]
-
-next_try:
-         div qword [rsi]
-;
-         test rdx,rdx
-         jne  next_dividor
-;divider found
-         mov    [lowpart_save],rax
-         inc    qword [dividers]
-         inc    qword [dividers_total]
-;and this is last dividor
-         cmp    rax,1
-         je     next_number
-
-         jmp    next_try
-
-next_number:
-        add       qword [lowpart],1
-        adc       qword [highpart],0
-        mov       rsi,simples
-        mov       qword [dividers_total],0
-        mov       qword [dividers],0
-        mov       rax,[lowpart]
-        mov       [lowpart_save],rax
-        call      divider
-        jmp       again
-
-
-next_dividor:
-         call    divider
-         add      rsi,8
-         mov      rax,[rsi]
-         test     rax,rax
-         jne      again
-;
-         mov   rax,[dividers_total]
-         test  rax,rax
-         jne    next_number
-
+         inc    qword [convert_i]
+         call   to_decimal
+         add    rsp,40h
+         mov    rcx,firstnum
+         mov   rdx, 0xc0000000 ;0x10000000 ;desiredaccess ;ofStruc
+         mov   r8,0 ;sharemode
+         mov   r9,0 ;dsecuriti attr
+         mov   qword [rsp+20h],4 ;open file always
+         mov   qword [rsp+24h],80h ;file attribute
+         mov   qword [rsp+28h],0 ;htemplatefile
+         call  [CreateFile]
+         add   rsp,40h
 
 ;----------EXIT----------
          xor      rcx,rcx
          call  [ExitProcess]
 
-;--------------------------
-;if dividers_total =  0 skip
-;if dividers_total =  1 call put_divider
-;if divirers_total >= 2 put star and call put_dividers
-divider:
-        mov     rbx,[dividers_total]
-        cmp     rbx,0
-        je      skip2
-        cmp     rbx,1
-        je      putdiv
-        call    star_symbol
-putdiv:
-        call    put_divider
-skip2:
-        ret
-
-;-------------------------
-;if dividers=0 skip
-;if 1  - put only rax
-;if >1 - put rax,roof,divider
-put_divider:
-         mov    rbx,[dividers]
-         cmp    rbx,0
-         je     skip
-         cmp    rbx,1
-         je     only_rax
-         call   put_number
-         call   roof_symbol
-         mov    rax,[dividers]
-only_rax:
-         call  put_number
-
-
-skip:
-
-        ret
 
 ;write to file
 ;
@@ -234,7 +162,7 @@ star_symbol:
         ret
 
 
-convert_i       dq      123456789123456789
+convert_i       dq      0
 convertbcd:     dq      0
                 dw 0
 digits          db      12
@@ -258,7 +186,7 @@ firstnumlen  dq  2
 summlen   dq  0
           db  '00'
 firstnum  db '11'
-          db 256 dup(20h)
+          db 256 dup(0h)
 dividers         dq 0
 dividers_total   dq      0
 lowpart          dq 2
