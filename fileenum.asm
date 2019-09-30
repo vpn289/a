@@ -13,12 +13,13 @@ entry start
   dd 0,0,0,0,0
 
   kernel_table:
-    ExitProcess  dq RVA _ExitProcess
-    ReadFile     dq RVA _ReadFile
-    WriteFile    dq RVA _WriteFile
-    CreateFile   dq RVA _CreateFile
-    OpenFile     dq RVA _OpenFile
-    GetLastError dq RVA _GetLastError
+    ExitProcess     dq RVA _ExitProcess
+    ReadFile        dq RVA _ReadFile
+    WriteFile       dq RVA _WriteFile
+    CreateFile      dq RVA _CreateFile
+    OpenFile        dq RVA _OpenFile
+    GetLastError    dq RVA _GetLastError
+    SetFilePointer  dq  RVA _SetFilePointer
     dq 0
   user_table:
     MessageBoxA dq RVA _MessageBoxA
@@ -41,6 +42,8 @@ entry start
     db 'OpenFile',0
   _GetLastError dw      0
     db 'GetLastError',0
+  _SetFilePointer dw 0
+    db 'SetFilePointer',0
 
 ; section '.text' code readable executable
   section '.text' code readable executable  writeable
@@ -59,10 +62,36 @@ entry start
          mov   [handle],rax
          call  [GetLastError]
          cmp   al,0b7h ;already exist
+;read the
+         sub    rsp,40h
+         mov    rcx,[handle]
+         mov    rdx,convert_i
+         mov    r8,8    ;bytes to read
+         mov    r9,bytesreaded
+         mov    qword [rsp+20h],0
+         call   [ReadFile]
+         add    rsp,40h
 
          inc    qword [convert_i]
+
+;writeback
+         mov     rcx,[handle]
+         xor     rdx,rdx
+         xor     r8,r8
+         xor     r9,r9  ;set to begin
+         call    [SetFilePointer]
+         mov     rcx,[handle]
+         sub     rsp,40h
+         mov     rdx,convert_i
+         mov     r8,8    ;bytes to write
+         mov     r9,byteswritten
+         mov     qword [rsp+20h],0
+         call    [WriteFile]
+         add     rsp,40h
+
          call   to_decimal
          add    rsp,40h
+
          mov    rcx,firstnum
          mov   rdx, 0xc0000000 ;0x10000000 ;desiredaccess ;ofStruc
          mov   r8,0 ;sharemode
@@ -168,6 +197,7 @@ convertbcd:     dq      0
 digits          db      12
 handle          dq      0
 byteswritten    dq      0
+bytesreaded     dq      0
 str_start       dq      0
 str_len         dq      0
 star            db      '*'
