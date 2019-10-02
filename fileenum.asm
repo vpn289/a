@@ -5,11 +5,13 @@
 
 
 format PE64 GUI
+include     'gdi32.inc'
 entry start
   section '.idata' import data readable writeable
 
   dd 0,0,0,RVA kernel_name,RVA kernel_table
   dd 0,0,0,RVA user_name,RVA user_table
+  dd 0,0,0,RVA mydll,RVA mydll_table
   dd 0,0,0,0,0
 
   kernel_table:
@@ -21,12 +23,19 @@ entry start
     GetLastError    dq RVA _GetLastError
     SetFilePointer  dq  RVA _SetFilePointer
     dq 0
+
   user_table:
     MessageBoxA dq RVA _MessageBoxA
     dq 0
 
+  mydll_table:
+     IntToString  dq RVA _IntToString
+     CutLeadingZeroes dq RVA _CutLeadingZeroes
+    dq 0
+
   kernel_name db 'KERNEL32.DLL',0
   user_name db 'USER32.DLL',0
+  mydll     db 'my.dll',0
 
   _ExitProcess dw 0
     db 'ExitProcess',0
@@ -44,6 +53,10 @@ entry start
     db 'GetLastError',0
   _SetFilePointer dw 0
     db 'SetFilePointer',0
+  _IntToString dw 0
+    db 'IntToString',0
+   _CutLeadingZeroes dw 0
+    db 'CutLeadingZeroes',0
 
 ; section '.text' code readable executable
   section '.text' code readable executable  writeable
@@ -89,10 +102,17 @@ entry start
          call    [WriteFile]
          add     rsp,40h
 
-         call   to_decimal
-         add    rsp,40h
 
+       ;  call   to_decimal
+         mov    rcx,convert_i
+         mov    rdx,firstnum
+         sub    rsp,40h
+         call   [IntToString]
          mov    rcx,firstnum
+         call   [CutLeadingZeroes]
+         add    rsp,40h
+;here rcx is the name of file
+;         mov    rcx,firstnum
          mov   rdx, 0xc0000000 ;0x10000000 ;desiredaccess ;ofStruc
          mov   r8,0 ;sharemode
          mov   r9,0 ;dsecuriti attr
@@ -125,32 +145,6 @@ to_file:
 ;-------------------------
 ;convert to  decimal subs
 
-;
-;convert_i - what to convert
-;convertbcd - intermediary data
-;convertbcd - output decimal string
-to_decimal:
-        push    rsi
-        xor     rdi,rdi
-        fild    qword [convert_i]
-        fbstp    tbyte [convertbcd]
-        mov      rsi,convertbcd+9
-
-todec2:
-        mov      al,[rsi]
-        dec      rsi
-        mov      ah,al
-        shr      al,4
-        and      ah,0fh
-        or       ax,3030h
-        mov      word [firstnum+rdi],ax
-        inc      rdi
-        inc      rdi
-        cmp      rsi,convertbcd
-        jnb      todec2
-        pop      rsi
-        ret
-
 cut_leading_zeroes:
 ;rdi - start of string
 ;rcx - length of string
@@ -165,7 +159,7 @@ cut_leading_zeroes:
 put_number:
 ;rax - number
         mov     [convert_i],rax
-        call    to_decimal
+;        call    to_decimal
         call    cut_leading_zeroes
         mov     [str_start],rdi
         mov     [str_len],rcx
