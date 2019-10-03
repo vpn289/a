@@ -5,7 +5,7 @@
 
 
 format PE64 GUI
-include     'gdi32.inc'
+
 entry start
   section '.idata' import data readable writeable
 
@@ -121,102 +121,62 @@ entry start
          mov   qword [rsp+28h],0 ;htemplatefile
          call  [CreateFile]
          add   rsp,40h
+         mov   [handle_bmp],rax
+;----------------------------
+;here save the header of bmp
+
+         mov     rcx,[handle_bmp]
+         sub     rsp,40h
+         mov     rdx,bmp_file_header
+         mov     r8,100*100*3+54+1024    ;bytes to write
+         mov     r9,byteswritten
+         mov     qword [rsp+20h],0
+         call    [WriteFile]
+         add     rsp,40h
 
 ;----------EXIT----------
          xor      rcx,rcx
          call  [ExitProcess]
 
 
-;write to file
-;
-to_file:
-         push    rsi
-         push    rax
-         mov   rcx,[handle]
-         mov   rdx,[str_start]
-         mov   r8,[str_len]
-         mov   r9,byteswritten
-         sub   rsp,128
-         call  [WriteFile]
-         add   rsp,128
-         pop   rax
-         pop   rsi
-         ret
-;-------------------------
-;convert to  decimal subs
-
-cut_leading_zeroes:
-;rdi - start of string
-;rcx - length of string
-        mov     rdi,firstnum
-        mov     rcx,21
-        mov     al,30h
-        cld
-        repe     scasb
-        dec      rdi
-        ret
-
-put_number:
-;rax - number
-        mov     [convert_i],rax
-;        call    to_decimal
-        call    cut_leading_zeroes
-        mov     [str_start],rdi
-        mov     [str_len],rcx
-        call    to_file
-        ret
-
-crlf:
-        mov       qword [str_start],crlf_s
-        mov       qword [str_len],2
-        call      to_file
-        ret
-
-roof_symbol:
-        mov     qword [str_start],roofs
-        mov     qword [str_len],1
-        call    to_file
-        ret
-
-star_symbol:
-        mov     qword [str_start],star
-        mov     qword [str_len],1
-        call    to_file
-        ret
-
 
 convert_i       dq      0
-convertbcd:     dq      0
-                dw 0
-digits          db      12
 handle          dq      0
+handle_bmp      dq      0
 byteswritten    dq      0
 bytesreaded     dq      0
-str_start       dq      0
-str_len         dq      0
-star            db      '*'
-roofs           db      '^'
-crlf_s          db      13,10
+
 
 
 filename db 'enum.en',0  ,0,0,0
-ofStruc:  db 136
-          db 0
-          dw 0
-          dw 0
-          dw 0
-          db 128 dup(0)
-firstnumlen  dq  2
-summlen   dq  0
-          db  '00'
-firstnum  db '11'
-          db 256 dup(0h)
-dividers         dq 0
-dividers_total   dq      0
-lowpart          dq 2
-highpart         dq 0
-lowpart_save     dq 0
-simples:         dq 2
-          dq 1024 dup(?)
 
-          db       0x200000 dup  (?)
+firstnum  db '12345678901234567890'
+          db '.bmp',0
+
+
+bmp_file_header:
+
+BITMAPFILEHEADER:
+  bfType      dw 4d42h
+  bfSize      dd 100*100*3+54
+  bfReserved1 dw 0
+  bfReserved2 dw 0
+  bfOffBits   dd  pixels -  bmp_file_header
+
+
+BITMAPINFOHEADER:
+  biSize          dd 40
+  biWidth         dd 100
+  biHeight        dd 100
+  biPlanes        dw 1
+  biBitCount      dw 24
+  biCompression   dd 0
+  biSizeImage     dd 100*100*3
+  biXPelsPerMeter dd 600
+  biYPelsPerMeter dd 600
+  biClrUsed       dd 0
+  biClrImportant  dd 0
+
+pixels:
+   dd 0ff8080h , 0ff0000h,  0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h, 0ff0000h
+     db 32768 dup(0)
