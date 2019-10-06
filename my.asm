@@ -77,6 +77,35 @@ cut_leading_zeroes:
         ret
 endp
 
+proc DrawColumn uses  rax r10 r11
+;draw column r8 width
+; rcx-left low corner
+; rdx - heigh of col
+; r8 - width column in bytes
+; r9 -width of screen in bytes
+; rsp+20h - color
+draw_col:
+       mov     rax,[rbp+70h]
+col1:
+      mov       r10,r8
+      mov       r11,rcx
+col2:
+      mov       [rcx+rdx],al
+      inc       rcx
+      mov       [rcx+rdx],ah
+      inc       rcx
+      ror       rax,8
+      mov       [rcx+rdx],ah
+      inc       rcx
+      rol       rax,8
+      sub       r10,3
+      jnb       col2
+      mov       rcx,r11
+
+      sub       rdx,r9
+      jne       col1
+      ret
+endp
 
 section '.bss' data readable writeable
 
@@ -89,7 +118,8 @@ section '.edata' export data readable
   export 'my.DLL',\
          IntToString,'IntToString'  ,\
          CutLeadingZeroes,'CutLeadingZeroes',\
-         SpaceLeadingZeroes,'SpaceLeadingZeroes'
+         SpaceLeadingZeroes,'SpaceLeadingZeroes',\
+         DrawColumn,'DrawColumn'
 
 section '.reloc' fixups data readable discardable
 
