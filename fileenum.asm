@@ -122,8 +122,34 @@ entry start
          call  [CreateFile]
          add   rsp,40h
          mov   [handle_bmp],rax
+
+;--------------------
+;fill white
+       mov      rdi,pixels
+       xor      al,al
+       dec      al
+       mov      rcx,100*100*3
+       rep      stosb
 ;----------------------------
-;here save the header of bmp
+;draw horizontal axis with black
+      mov       rdi,pixels+50*3*100
+      xor       al,al
+      mov       rcx,100*3
+      rep       stosb
+;----------------------------
+;draw red column width 8 height 40
+      mov       rdi,pixels+51*3*100+10*3
+      mov       rbx,40*3*100
+      mov       rax,8300h
+      call      draw_col
+      mov       rdi,pixels+51*3*100+20*3
+      mov       rbx,20*3*100
+      call      draw_col
+      mov       rdi,pixels+51*3*100+30*3
+      mov       rbx,27*3*100
+      call      draw_col
+;----------------------------
+;here save the  bmp
 
          mov     rcx,[handle_bmp]
          sub     rsp,40h
@@ -138,6 +164,26 @@ entry start
          xor      rcx,rcx
          call  [ExitProcess]
 
+draw_col:
+col1:
+      mov       rcx,8
+
+col2:
+      mov       [rbx+rdi],al
+      inc       rdi
+      mov       [rbx+rdi],ah
+      inc       rdi
+      ror       rax,8
+      mov       [rbx+rdi],ah
+      inc       rdi
+      rol       rax,8
+      dec       rcx
+      jne       col2
+      sub       rdi,3*8
+
+      sub       rbx,100*3
+      jne       col1
+      ret
 
 
 convert_i       dq      0
