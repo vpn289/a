@@ -1,8 +1,5 @@
 
-; file enumerator
-;create in folder 'foldername' file 1.ext if folder empty
-;if folder not empty create file with next name i/e 1.exe exisit creates 2.ext and so on
-
+;
 
 format PE64 console dll
 include 'win64a.inc'
@@ -77,7 +74,7 @@ cut_leading_zeroes:
         ret
 endp
 
-proc DrawColumn uses  rax r10 r11
+proc DrawColumn uses  rax r10 r11 r12 r13
 ;draw column r8 width
 ; rcx-left low corner
 ; rdx - heigh of col
@@ -85,24 +82,34 @@ proc DrawColumn uses  rax r10 r11
 ; r9 -width of screen in bytes
 ; rsp+20h - color
 draw_col:
-       mov     rax,[rbp+70h]
+      mov       rax,[rbp+70h]
+      mov       r13,rcx
+      mov       r11,r9
+      neg       r11
+      test      rdx,rdx
+      cmovg     r11,r9
+;      add       r13,rdx
+
 col1:
       mov       r10,r8
-      mov       r11,rcx
+      ;mov       r11,rcx
+      lea       r12,[rcx+rdx]
 col2:
-      mov       [rcx+rdx],al
-      inc       rcx
-      mov       [rcx+rdx],ah
-      inc       rcx
-      ror       rax,8
-      mov       [rcx+rdx],ah
-      inc       rcx
-      rol       rax,8
-      sub       r10,3
-      jnb       col2
-      mov       rcx,r11
 
-      sub       rdx,r9
+      mov       [r12],al
+      inc       r12
+      ror       rax,8
+      mov       [r12],al
+      inc       r12
+      ror       rax,8
+      mov       [r12],al
+      inc       r12
+      rol       rax,16
+      sub       r10,3
+      jne       col2
+;      mov       rcx,r11
+      sub       rdx,r11
+;      sub       r11,r9
       jne       col1
       ret
 endp
