@@ -31,6 +31,7 @@ entry start
   mydll_table:
      IntToString  dq RVA _IntToString
      CutLeadingZeroes dq RVA _CutLeadingZeroes
+     DrawColumn       dq RVA _DrawColumn
     dq 0
 
   kernel_name db 'KERNEL32.DLL',0
@@ -55,8 +56,10 @@ entry start
     db 'SetFilePointer',0
   _IntToString dw 0
     db 'IntToString',0
-   _CutLeadingZeroes dw 0
+  _CutLeadingZeroes dw 0
     db 'CutLeadingZeroes',0
+  _DrawColumn   dw      0
+    db 'DrawColumn',0
 
 ; section '.text' code readable executable
   section '.text' code readable executable  writeable
@@ -137,17 +140,42 @@ entry start
       mov       rcx,100*3
       rep       stosb
 ;----------------------------
-;draw red column width 8 height 40
-      mov       rdi,pixels+51*3*100+10*3
-      mov       rbx,40*3*100
-      mov       rax,8300h
-      call      draw_col
-      mov       rdi,pixels+51*3*100+20*3
-      mov       rbx,20*3*100
-      call      draw_col
-      mov       rdi,pixels+51*3*100+30*3
-      mov       rbx,27*3*100
-      call      draw_col
+;draw graphic red 10 columns width 8 height from table
+      mov       rcx,pixels+51*3*100+10*3
+      mov       rsi,heighst
+      mov       rbx,8
+
+      mov       r8,8*3
+      mov       r9,100*3
+      mov       qword [rsp+20h],8300h
+
+
+      sub       rsp,40h
+
+grapich:
+
+      mov       rdx,[rsi]
+
+      call      [DrawColumn]
+      add       rsi,8
+      add       rcx,30
+      dec       rbx
+      jne       grapich
+
+     ; mov       rcx,pixels+51*3*100+20*3
+     ; mov       rdx,20*3*100
+     ; call      [DrawColumn]
+     ; mov       rcx,pixels+51*3*100+30*3
+     ; mov       rdx,27*3*100
+     ; call      [DrawColumn]
+      add       rsp,40h
+
+ ;     mov       rdi,pixels+51*3*100+20*3
+  ;    mov       rbx,20*3*100
+;      call      draw_col
+   ;   mov       rdi,pixels+51*3*100+30*3
+    ;  mov       rbx,27*3*100
+ ;     call      draw_col
 ;----------------------------
 ;here save the  bmp
 
@@ -163,25 +191,33 @@ entry start
 ;----------EXIT----------
          xor      rcx,rcx
          call  [ExitProcess]
-
+;-------------------------------
+;draw column r8 width
+; rcx-left low corner
+; rdx - heigh of col
+; r8 - width column in bytes
+; r9 -width of screen in bytes
+; rsp+20h - color
 draw_col:
+        mov     rax,r8
 col1:
-      mov       rcx,8
+      mov       r10,8
 
 col2:
-      mov       [rbx+rdi],al
-      inc       rdi
-      mov       [rbx+rdi],ah
-      inc       rdi
+      lea       r11,[rcx+rdx]
+      mov       [rcx+rdx],al
+      inc       rcx
+      mov       [rcx+rdx],ah
+      inc       rcx
       ror       rax,8
-      mov       [rbx+rdi],ah
-      inc       rdi
+      mov       [rcx+rdx],ah
+      inc       rcx
       rol       rax,8
-      dec       rcx
+      dec       r10
       jne       col2
-      sub       rdi,3*8
+      sub       rcx,3*8
 
-      sub       rbx,100*3
+      sub       rdx,r9
       jne       col1
       ret
 
@@ -199,6 +235,8 @@ filename db 'enum.en',0  ,0,0,0
 firstnum  db '12345678901234567890'
           db '.bmp',0
 
+heighst:
+        dq      40*300,27*300,32*300,-8*300,16*300,38*300,-17*300,22*300,10*300,39*300
 
 bmp_file_header:
 
