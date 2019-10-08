@@ -87,6 +87,7 @@ draw_col:
       mov       r11,r9
       neg       r11
       test      rdx,rdx
+      je        col3
       cmovg     r11,r9
 ;      add       r13,rdx
 
@@ -111,6 +112,8 @@ col2:
       sub       rdx,r11
 ;      sub       r11,r9
       jne       col1
+
+col3:
       ret
 endp
 
