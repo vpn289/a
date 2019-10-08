@@ -6,6 +6,7 @@
 screen_w = 180
 Bytes_per_pixel = 3
 row = screen_w*Bytes_per_pixel
+hdeight =100
 
 format PE64 GUI
 
@@ -25,6 +26,8 @@ entry start
     OpenFile        dq RVA _OpenFile
     GetLastError    dq RVA _GetLastError
     SetFilePointer  dq  RVA _SetFilePointer
+    CreateFileMappingA  dq  RVA _CreateFileMappingA
+    MapViewOfFile       dq  RVA _MapViewOfFile
     dq 0
 
   user_table:
@@ -63,10 +66,72 @@ entry start
     db 'CutLeadingZeroes',0
   _DrawColumn   dw      0
     db 'DrawColumn',0
+  _CreateFileMappingA dw        0
+    db 'CreateFileMappingA',0
+  _MapViewOfFile dw     0
+    db 'MapViewOfFile',0
 
 ; section '.text' code readable executable
   section '.text' code readable executable  writeable
   start:
+         sub     rsp,40h
+         mov     rcx,pihextb
+         mov   rdx, 0x80000000  ;generic read
+         mov   r8,0 ;sharemode
+         mov   r9,0 ;dsecuriti attr
+         mov   qword [rsp+20h],3 ;open exist
+         mov   qword [rsp+24h],80h ;file attribute
+         mov   qword [rsp+28h],0 ;htemplatefile
+         call  [CreateFile]
+         add   rsp,40h
+         mov   [handle_pihex],rax
+         mov   rcx,rax
+         mov   rdx,0;file mapping attributes
+         mov   r8,2 ; pages read only
+         mov   r9,0 ; maximum size
+         sub   rsp,40h
+         mov   qword [rsp+20h],0 ;maximum size
+         mov   qword [rsp+24h],0
+         call  [CreateFileMappingA]
+         add   rsp,40h
+         mov   rcx,rax
+         mov   rdx,4 ;desiread access RO
+         mov   r8,0
+         mov   r9,0 ;offset
+         sub   rsp,40h
+         mov   qword [rsp+20h],0
+         call  [MapViewOfFile]
+         add   rsp,40h
+;rax - address of pi_hex
+;-------------------------
+;take digit from file and inc in the table heighst
+         xor   rbx,rbx
+         mov   rcx,500
+         inc   rax
+         inc   rax
+         mov   r9,27h
+
+coumt1:
+         xor    rdx,rdx
+         mov    bl,[rax]
+         ;and   bl,3fh
+         sub    bl,30h
+         bt     rbx,5
+         cmovb  rdx,r9
+         sub    rbx,rdx
+
+         ;and    bl,0fh
+         ;setb   dl
+         ;sub    bl,dl
+         inc    rax
+         shl    bl,3
+         add    qword [rbx+heighst],row
+         loop   coumt1
+
+;-----------------
+;normalize the heighs
+
+;--------------
 ;try to create file enum.en
          sub   rsp,40h
          mov   rcx,filename
@@ -134,7 +199,7 @@ entry start
        mov      rdi,pixels
        xor      al,al
        dec      al
-       mov      rcx,100*row
+       mov      rcx,hdeight*row
        rep      stosb
 ;----------------------------
 ;draw horizontal axis with black
@@ -173,7 +238,7 @@ grapich:
          mov     rcx,[handle_bmp]
          sub     rsp,40h
          mov     rdx,bmp_file_header
-         mov     r8,100*row+54+1024    ;bytes to write
+         mov     r8,hdeight*row+54+1024    ;bytes to write
          mov     r9,byteswritten
          mov     qword [rsp+20h],0
          call    [WriteFile]
@@ -189,24 +254,26 @@ grapich:
 convert_i       dq      0
 handle          dq      0
 handle_bmp      dq      0
+handle_pihex    dq      0
 byteswritten    dq      0
 bytesreaded     dq      0
 
 
 
 filename db 'enum.en',0  ,0,0,0
+pihextb    db 'pi_hex_1b.txt',0
 
 firstnum  db '12345678901234567890'
           db '.bmp',0
 
 heighst:
-        dq      40*row,27*row,32*row,-8*row,16*row,38*row,-17*row,22*row,10*row,39*row,3*row,-11*row,9*row,-32*row,4*row,15*row,1*row
+        dq      0,0,0,row,0,0,0,0,0,0,0,0,0,0,0,0,0 ;40*row,27*row,32*row,-8*row,16*row,38*row,-17*row,22*row,10*row,39*row,3*row,-11*row,9*row,-32*row,4*row,15*row,1*row
 
 bmp_file_header:
 
 BITMAPFILEHEADER:
   bfType      dw 4d42h
-  bfSize      dd 100*screen_w*Bytes_per_pixel +54
+  bfSize      dd hdeight*screen_w*Bytes_per_pixel +54
   bfReserved1 dw 0
   bfReserved2 dw 0
   bfOffBits   dd  pixels -  bmp_file_header
@@ -215,11 +282,11 @@ BITMAPFILEHEADER:
 BITMAPINFOHEADER:
   biSize          dd 40
   biWidth         dd screen_w
-  biHeight        dd 100
+  biHeight        dd hdeight
   biPlanes        dw 1
   biBitCount      dw Bytes_per_pixel*8
   biCompression   dd 0
-  biSizeImage     dd 100*screen_w*Bytes_per_pixel
+  biSizeImage     dd hdeight*screen_w*Bytes_per_pixel
   biXPelsPerMeter dd 600
   biYPelsPerMeter dd 600
   biClrUsed       dd 0
