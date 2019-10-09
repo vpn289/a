@@ -7,6 +7,7 @@ screen_w = 180
 Bytes_per_pixel = 3
 row = screen_w*Bytes_per_pixel
 hdeight =100
+max_col_h=45
 
 format PE64 GUI
 
@@ -74,7 +75,7 @@ entry start
 ; section '.text' code readable executable
   section '.text' code readable executable  writeable
   start:
-         sub     rsp,40h
+       sub     rsp,40h
          mov     rcx,pihextb
          mov   rdx, 0x80000000  ;generic read
          mov   r8,0 ;sharemode
@@ -83,32 +84,36 @@ entry start
          mov   qword [rsp+24h],80h ;file attribute
          mov   qword [rsp+28h],0 ;htemplatefile
          call  [CreateFile]
-         add   rsp,40h
+       add   rsp,40h
          mov   [handle_pihex],rax
          mov   rcx,rax
          mov   rdx,0;file mapping attributes
          mov   r8,2 ; pages read only
          mov   r9,0 ; maximum size
-         sub   rsp,40h
+       sub   rsp,40h
          mov   qword [rsp+20h],0 ;maximum size
          mov   qword [rsp+24h],0
          call  [CreateFileMappingA]
-         add   rsp,40h
+       add   rsp,40h
          mov   rcx,rax
          mov   rdx,4 ;desiread access RO
          mov   r8,0
          mov   r9,0 ;offset
-         sub   rsp,40h
+       sub   rsp,40h
          mov   qword [rsp+20h],0
          call  [MapViewOfFile]
-         add   rsp,40h
+       add   rsp,40h
 ;rax - address of pi_hex
 ;-------------------------
 ;take digit from file and inc in the table heighst
+         mov     rsi,10
+
+         inc   rax
+         inc   rax
+
+coumt2:
          xor   rbx,rbx
-         mov   rcx,500
-         inc   rax
-         inc   rax
+         mov   rcx,100
          mov   r9,27h
 
 coumt1:
@@ -125,15 +130,66 @@ coumt1:
          ;sub    bl,dl
          inc    rax
          shl    bl,3
-         add    qword [rbx+heighst],row
+;         add    qword [rbx+heighst],row
+         inc     qword [rbx+heighst]
          loop   coumt1
+
+         push   rax
+         push   rsi
+
+;scale heighst
+          mov    rcx,16
+          mov    rdi,heighst
+
+scaleh2:
+          mov    rax,[rdi]
+          cmp    rax, max_col_h
+          jb     scaleh1
+          mov    qword [rdi],max_col_h
+scaleh1:
+          add   rdi,8
+          loop  scaleh2
+
+
+           mov    rcx,16
+          mov    rdi,heighst
+          mov    rbx,row
+
+mulrow2:
+         ; mov    rax,[rdi]
+         ; imul   rbx
+         ; mov    [rdi],rax
+         ;  add   rdi,8
+         ; loop  mulrow2
+
+         call   draw_graph
+
+
+;clear heighst
+     ;    mov    rcx,16
+     ;    mov    rdi,heighst
+     ;    xor    rax,rax
+      ;   rep    stosq
+
+         pop    rsi
+         pop    rax
+         dec    rsi
+         jne    coumt2
+
+        xor     rcx,rcx
+        call    [ExitProcess]
 
 ;-----------------
 ;normalize the heighs
 
+draw_graph:
+
+
+
+
 ;--------------
 ;try to create file enum.en
-         sub   rsp,40h
+       sub   rsp,40h
          mov   rcx,filename
          mov   rdx, 0xc0000000 ;0x10000000 ;desiredaccess ;ofStruc
          mov   r8,0 ;sharemode
@@ -142,19 +198,19 @@ coumt1:
          mov   qword [rsp+24h],80h ;file attribute
          mov   qword [rsp+28h],0 ;htemplatefile
          call  [CreateFile]
-         add   rsp,40h
+       add   rsp,40h
          mov   [handle],rax
          call  [GetLastError]
          cmp   al,0b7h ;already exist
 ;read the
-         sub    rsp,40h
+       sub    rsp,40h
          mov    rcx,[handle]
          mov    rdx,convert_i
          mov    r8,8    ;bytes to read
          mov    r9,bytesreaded
          mov    qword [rsp+20h],0
          call   [ReadFile]
-         add    rsp,40h
+       add    rsp,40h
 
          inc    qword [convert_i]
 
@@ -163,35 +219,38 @@ coumt1:
          xor     rdx,rdx
          xor     r8,r8
          xor     r9,r9  ;set to begin
+       sub       rsp,40h
          call    [SetFilePointer]
+       add       rsp,40h
          mov     rcx,[handle]
-         sub     rsp,40h
+       sub     rsp,40h
          mov     rdx,convert_i
          mov     r8,8    ;bytes to write
          mov     r9,byteswritten
          mov     qword [rsp+20h],0
          call    [WriteFile]
-         add     rsp,40h
+       add     rsp,40h
 
 
        ;  call   to_decimal
          mov    rcx,convert_i
          mov    rdx,firstnum
-         sub    rsp,40h
+       sub    rsp,40h
          call   [IntToString]
          mov    rcx,firstnum
          call   [CutLeadingZeroes]
-         add    rsp,40h
+       add    rsp,40h
 ;here rcx is the name of file
 ;         mov    rcx,firstnum
          mov   rdx, 0xc0000000 ;0x10000000 ;desiredaccess ;ofStruc
          mov   r8,0 ;sharemode
          mov   r9,0 ;dsecuriti attr
+       sub   rsp,40h
          mov   qword [rsp+20h],4 ;open file always
          mov   qword [rsp+24h],80h ;file attribute
          mov   qword [rsp+28h],0 ;htemplatefile
          call  [CreateFile]
-         add   rsp,40h
+       add   rsp,40h
          mov   [handle_bmp],rax
 
 ;--------------------
@@ -215,34 +274,35 @@ coumt1:
 
       mov       r8,8*Bytes_per_pixel
       mov       r9,row
+
+   sub       rsp,40h
       mov       qword [rsp+20h],8300h
-
-
-      sub       rsp,40h
 
 grapich:
 
       mov       rdx,[rsi]
+      imul      rdx,r9
 
       call      [DrawColumn]
       add       rsi,8
       add       rcx,30 ;place for next column
       dec       rbx
       jne       grapich
-      add       rsp,40h
+    add       rsp,40h
 
 
 ;----------------------------
 ;here save the  bmp
 
          mov     rcx,[handle_bmp]
-         sub     rsp,40h
+       sub     rsp,40h
          mov     rdx,bmp_file_header
          mov     r8,hdeight*row+54+1024    ;bytes to write
          mov     r9,byteswritten
          mov     qword [rsp+20h],0
          call    [WriteFile]
-         add     rsp,40h
+       add     rsp,40h
+         ret
 
 ;----------EXIT----------
          xor      rcx,rcx
@@ -267,7 +327,7 @@ firstnum  db '12345678901234567890'
           db '.bmp',0
 
 heighst:
-        dq      0,0,0,row,0,0,0,0,0,0,0,0,0,0,0,0,0 ;40*row,27*row,32*row,-8*row,16*row,38*row,-17*row,22*row,10*row,39*row,3*row,-11*row,9*row,-32*row,4*row,15*row,1*row
+        dq      0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0 ;40*row,27*row,32*row,-8*row,16*row,38*row,-17*row,22*row,10*row,39*row,3*row,-11*row,9*row,-32*row,4*row,15*row,1*row
 
 bmp_file_header:
 
