@@ -121,10 +121,13 @@ scaleh1:
 eighttonine:
 ;rsi - pixels
 ;rdi -compressed
+     int3
          xor    rax,rax
          mov    rsi,pixels
          mov    rdi, compressed_picture
-         mov    rcx,15
+
+ein2:
+         mov    rcx,8
 ein1:
          mov    al,[rsi]
          ;insert 0-bit
@@ -132,6 +135,9 @@ ein1:
          inc     rsi
          loop    ein1
          mov     [rdi],rax
+         add     rdi,8
+         dec     rbx
+         jne     ein2
          ret
 
 ;-----------------
@@ -247,10 +253,11 @@ heightl  dw     hdeight
          db      08 ;ðàçìåðíîñòü êîäà
          db      screen_w*hdeight+4 ;0feh ;êîëè÷åñòâî áàéò êîäà
 
-         db      00
+        ; db      00
 compressed_picture:
 ;pixels:
-         db      1,1,1,1,0,0,0,0, 0h,0h,0h,0h,1,2,4,8;,10h, 20h,40h,80h
+          db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h
+          db      7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
     ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
     ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
     ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
@@ -270,6 +277,6 @@ compressed_picture:
 ;         db      254 dup(7)
 
 
-         db      1,8,8
+         db      8,8
          db      0,3Bh
 endofgif:
