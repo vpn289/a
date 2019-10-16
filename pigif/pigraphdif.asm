@@ -3,10 +3,10 @@
 ; order of he digits
 ; 0 1 2 4 8 3 5 9 A C 7 B D E F
 
-screen_w =4
+screen_w =20
 Bytes_per_pixel = 1
 row = screen_w*Bytes_per_pixel
-hdeight =4
+hdeight =10
 max_col_h=14
 
 format PE64 GUI
@@ -131,33 +131,54 @@ eighttonine:
          nop
          mov    rsi,pixels
          mov    rdi, compressed_picture
-         mov    rbx,2
+         mov    r8,rdi
+         mov    rbx, screen_w*hdeight
          xor    rax,rax
 
 ein2:
-       ;  xor    rax,rax
-         mov    rcx,8
+          xor    rax,rax
+          mov    rcx,1
           mov     al,[rsi]
           mov     [rdi],al
           inc     rsi
           inc     rdi
- ;        mov     rax,[rsi]
-ein1:
-
-         ;insert 0-bit
-;         mov     rax,7060504030201h
+          dec     rbx
+          je      ein5
 
           mov     al,[rsi]
-          shrd    rdx,rax,9
-         ; mov     [rdi],al
+          shl     rax,1
+          mov     [rdi],al
           inc     rsi
-         ; inc     rdi
-         loop      ein1
-         mov       [rdi],rdx
-         add       rdi,8
+          inc     rdi
+          dec     rbx
+          je      ein5
 
-         dec     rbx
-         jne     ein2
+ein4:
+          shr     rax,8
+          ror     rax,cl
+          mov     al,[rsi]
+          inc     cl
+          clc
+          rcl     rax,cl
+          mov     [rdi],al
+          inc     rsi
+          inc     rdi
+          dec     rbx
+          je      ein5
+          cmp     cl,8; screen_w*hdeight -2
+          jne     ein4
+          mov     cl,1
+       ;   mov     [rdi],ah
+       ;   inc     rdi
+          dec     rbx
+          jne     ein2
+
+ein5:;
+         mov     qword [rdi],03b0000h
+         sub     rdi,r8
+         mov     rax,rdi
+;         dec     al
+         mov     [copmrbytes],al
          ret
 
 ;-----------------
@@ -216,7 +237,8 @@ grapich:
          mov     rcx,[handle_bmp]
        sub     rsp,40h
          mov     rdx,gif_file_header
-         mov     r8, endofgif-gif_file_header;hdeight*row+54+1024    ;bytes to write
+         movzx     r8, byte [copmrbytes]
+         add     r8,54+768 ;endofgif-gif_file_header;hdeight*row+54+1024    ;bytes to write
          mov     r9,byteswritten
          mov     qword [rsp+20h],0
          call    [WriteFile]
@@ -248,7 +270,7 @@ accumul:
 
 
 pixels:
-     db hdeight*screen_w*Bytes_per_pixel+4    dup(08h)
+     db hdeight*screen_w*Bytes_per_pixel+4    dup(7h)
      db 256 dup(0)
 
 
@@ -262,8 +284,6 @@ height  dw     hdeight
         ;pallete
         include 'gifpallet.inc'
 
-    ;   include 'gifhex2.inc'
-       ; include 'gifhex.inc'
          db      ','
          dw      0 ;ïîëîäæåíèå êàðòèíêè íà ëîã ýêðàíå
          dw      0
@@ -271,115 +291,14 @@ widthl   dw     screen_w
 heightl  dw     hdeight
          db      0 ;ëîêàëüíàÿ ïëàòèðà îòñóòñòâóåò
          db      08 ;ðàçìåðíîñòü êîäà
-         db      screen_w*hdeight+2 ;0feh ;êîëè÷åñòâî áàéò êîäà
+
+copmrbytes         db      screen_w*hdeight+4 ;0feh ;êîëè÷åñòâî áàéò êîäà
 
         ; db      00
 compressed_picture:
 ;pixels:
           db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h
           db      7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-    ;     db      0,1,2,3,4,5,6,7,8,9,0ah,0bh,0ch,0dh,0eh,0fh
-         ;db      254 dup(7h)
-;         db      255,0
-;         db      254 dup(7)
 
-
-    ;     db      0,0
          db       0,0,3Bh
 endofgif:
-
-;0-byte
-        db      1024 dup(0)
-;         mov    al,[rsi]
-;         inc     rsi
-;         mov     [rdi],al
-;         inc     rdi
-;1
-;        mov     al,[rsi]
-;        inc     rsi
-;        rol     rax,1
-;        ;shld    rdx,rax,1
-;        mov     [rdi],al
-;        inc     rdi
-;2
-;        mov     al,[rsi]
-        inc     rsi
-        rol     rax,2
-;        shld    rdx,rax,2
-        mov     [rdi],al
-         inc     rdi
-;2
-        mov     al,[rsi]
-        inc     rsi
-        rol     rax,3
-        mov     [rdi],al
-         inc     rdi
-;2
-        mov     al,[rsi]
-        inc     rsi
-        rol     rax,4
-        mov     [rdi],al
-         inc     rdi
-;2
-        mov     al,[rsi]
-        inc     rsi
-        rol     rax,5
-        mov     [rdi],al
-         inc     rdi
-;2
-        mov     al,[rsi]
-        inc     rsi
-        rol     rax,6
-        mov     [rdi],al
-         inc     rdi
-;2
-        mov     al,[rsi]
-        inc     rsi
-        rol     rax,7
-        mov     [rdi],al
-         inc     rdi
-;2
-        mov     al,[rsi]
-        inc     rsi
-        shl     rax,8
-        mov     [rdi],al
-        inc     rdi
-        mov     [rdi],ah
-        inc     rdi
-
-
-    clc
-         rcl    rax,9
-         inc    cl
-         ror    rax,8+9
-         clc
-         rcl    rax,10+8
-         ror    rax,8+8+10
-         clc
-         rcl    rax,11+8+8
-         ror    rax,8+8+8+11
-         clc
-         rcl    rax,12+8+8+8
-         ror    rax,8+8+8+8+12
-         clc
-         rcl    rax,13+8+8+8+8+8
-         ror    rax,8+8+8+8+8+13
-         clc
-         rcl    rax,14+8+8+8+8+8+8
-         ror    rax,8+8+8+8+8+8+14
-         clc
-         rcl    rax,15+8+8+8+8+8+8+8
-;
