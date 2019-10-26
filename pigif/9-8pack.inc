@@ -38,7 +38,7 @@ ein1:
          rol     rax,cl
          mov     [rdi],al
          xor     rax,rax
-         mov     rcx,1
+         mov     rcx,0
          inc     rdi
          inc     rbx
          cmp     rbx,20
