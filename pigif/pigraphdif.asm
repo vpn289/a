@@ -3,11 +3,11 @@
 ; order of he digits
 ; 0 1 2 4 8 3 5 9 A C 7 B D E F
 
-screen_w =20
+screen_w =10;1528
 Bytes_per_pixel = 1
 row = screen_w*Bytes_per_pixel
 hdeight =10
-max_col_h=14
+max_col_h=45
 
 format PE64 GUI
 
@@ -20,93 +20,7 @@ entry start
   start:
         call opennmappihex
 ;rax - address of pi_hex
-;-------------------------
-;take digit from file and inc in the table heighst
-         mov     rsi,1
-
-         inc   rax
-         inc   rax
-
-coumt2:
-         xor   rbx,rbx
-         mov   rcx,100
-         mov   r9,27h
-
-coumt1:
-         xor    rdx,rdx
-         mov    bl,[rax]
-         ;and   bl,3fh
-         sub    bl,30h
-         bt     rbx,5
-         cmovb  rdx,r9
-         sub    rbx,rdx
-
-         ;and    bl,0fh
-         ;setb   dl
-         ;sub    bl,dl
-         inc    rax
-         shl    bl,3
-;         add    qword [rbx+heighst],row
-         inc     qword [rbx+accumul]
-         loop   coumt1
-
-         push   rax
-         push   rsi
-
-;---------------------------
-;calc relaties
-;âû÷èñëÿåì ñðåäíåå - ñóììà âñåõ, äåëåíàÿ íà 16
-;èç êàæäîãî çíà÷åíèå âû÷èòàåì ñðåäíåå
-            mov rcx,16
-            xor rax,rax
-            mov rdi,accumul
-sumof16:
-            add rax,[rdi]
-            add rdi,8
-            loop       sumof16
-            sar rax,4
-
-            mov rcx,16
-            xor rsi,rsi
-
-eachrelative:
-            mov rbx,[rsi*8+accumul]
-            sub rbx,rax
-            mov [rsi*8+heighst],rbx
-            inc rsi
-            loop        eachrelative
-
-;scale heighst
-          mov    rcx,16
-          mov    rdi,heighst
-
-scaleh2:
-          mov    rax,[rdi]
-          mov    rbx,rax
-          neg    rax
-          cmovl  rax,rbx
-          cmp    rax, max_col_h
-          jb     scaleh1
-          mov    qword [rdi],max_col_h
-scaleh1:
-          add   rdi,8
-          loop  scaleh2
-
-
-           mov    rcx,16
-           mov    rdi,heighst
-           mov    rbx,row
-
-
-
-         call   draw_graph
-
-
-
-          pop    rsi
-          pop    rax
-          dec    rsi
-          jne    coumt2
+        include 'preparegrapfh.inc'
 ;------------------------------
 ;convert bitmap to gif blocks
 ;8-bit pixsels to 9-bit gif chanks
@@ -117,133 +31,11 @@ scaleh1:
 
           include       'opnepihex.inc'
           include       'enumfilenm.inc'
+          include       '9-8pack.inc'
 
-db      'EIGHTONNINE',0
-
-eighttonine:
-;rsi - pixels
-;rdi -compressed
-   ;  int3
-         nop
-         nop
-         nop
-         nop
-         nop
-         mov    rsi,pixels
-         mov    rdi, compressed_picture
-         mov    r8,rdi
-         mov    rbx, screen_w*hdeight
-         xor    rax,rax
-
-ein2:
-          xor    rax,rax
-          mov    rcx,1
-          mov     al,[rsi]
-          mov     [rdi],al
-          inc     rsi
-          inc     rdi
-          dec     rbx
-          je      ein5
-
-          mov     al,[rsi]
-          shl     rax,1
-          mov     [rdi],al
-          inc     rsi
-          inc     rdi
-          dec     rbx
-          je      ein5
-
-ein4:
-          shr     rax,8
-          ror     rax,cl
-          mov     al,[rsi]
-          inc     cl
-          clc
-          rcl     rax,cl
-          mov     [rdi],al
-          inc     rsi
-          inc     rdi
-          dec     rbx
-          je      ein5
-          cmp     cl,8; screen_w*hdeight -2
-          jne     ein4
-          mov     cl,1
-       ;   mov     [rdi],ah
-       ;   inc     rdi
-          dec     rbx
-          jne     ein2
-
-ein5:;
-         mov     qword [rdi],03b0000h
-         sub     rdi,r8
-         mov     rax,rdi
-;         dec     al
-         mov     [copmrbytes],al
-         ret
 
 ;-----------------
 ;normalize the heighs
-
-draw_graph:
-
-
-
-       call     enumfile
-
-
-;--------------------
-;fill white
-       mov      rdi,pixels
-       xor      al,al
-       dec      al
-       mov      rcx,hdeight*row
-;       rep      stosb
-;----------------------------
-;draw horizontal axis with black
-      mov       rdi,pixels+hdeight*row/2
-      ;xor       al,al
-      mov        al,16
-      mov       rcx,row
-;      rep       stosb
-;----------------------------
-;draw graphic green 16 columns width 8 height from table
-      mov       rcx,pixels+51*row+10*Bytes_per_pixel
-      mov       rsi,heighst
-      mov       rbx,16
-
-      mov       r8,8*Bytes_per_pixel
-      mov       r9,row
-
-   sub       rsp,40h
-;      mov       qword [rsp+20h],8300h
-
-grapich:
-
-      mov       rdx,[rsi]
-      imul      rdx,r9
-
-  ;    call      [DrawColumn]
-      add       rsi,8
-      add       rcx,30 ;place for next column
-      dec       rbx
-      jne       grapich
-    add       rsp,40h
-
-        call    eighttonine
-
-;----------------------------
-;here save the  gif
-
-         mov     rcx,[handle_bmp]
-       sub     rsp,40h
-         mov     rdx,gif_file_header
-         movzx     r8, byte [copmrbytes]
-         add     r8,54+768 ;endofgif-gif_file_header;hdeight*row+54+1024    ;bytes to write
-         mov     r9,byteswritten
-         mov     qword [rsp+20h],0
-         call    [WriteFile]
-       add     rsp,40h
-         ret
 
 ;----------EXIT----------
          xor      rcx,rcx
@@ -270,7 +62,20 @@ accumul:
 
 
 pixels:
-     db hdeight*screen_w*Bytes_per_pixel+4    dup(7h)
+    ; db hdeight*screen_w*Bytes_per_pixel+4    dup(7h)
+     dw  100h, 7,102h, 103h , 104h;,  105h,106h,  107h, 108h,109h, 10ah, 10bh, 10ch,10dh,10eh;,10fh;,110h;,111h;,112h;10ch,10dh,10eh,10fh, 8,  8,8,8,8, 110h, 0, 101h,0   ; 7,  7, 7 ,7,7,7,7
+     ;dw  ,7,7,7,7,7, 7,7,7,7,7,7,7,7,7,7,102h, 103h , 104h,  105h,106h
+      dw  7,102h, 103h , 8,106h,7
+      dw  7,102h, 103h , 8,107h
+      dw   8
+      dw  7,102h, 103h , 8
+      dw  7,102h, 103h , 8
+      dw  7,102h, 103h , 8
+      dw  7,102h, 103h , 8
+      dw  7,102h, 103h , 104h
+   ;  dw  100h, 7,102h, 103h , 104h,  105h,106h
+     dw  101h                                         ;28+8=36
+     dw  0ffffh
      db 256 dup(0)
 
 
@@ -292,13 +97,72 @@ heightl  dw     hdeight
          db      0 ;ëîêàëüíàÿ ïëàòèðà îòñóòñòâóåò
          db      08 ;ðàçìåðíîñòü êîäà
 
-copmrbytes         db      screen_w*hdeight+4 ;0feh ;êîëè÷åñòâî áàéò êîäà
+copmrbytes         db      7 ;screen_w*hdeight+0 ;0feh ;êîëè÷åñòâî áàéò êîäà
 
         ; db      00
 compressed_picture:
 ;pixels:
-          db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h
-          db      7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        db      256 dup(0)
+      ;    db      7,04h,02h,0eh,04h ;,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+         ; db      0x00, 0x07, 0x08, 0x1C, 0x28, 0x30, 0x20
+       ;     db     0x00, 0x07, 0x08, 0x1c, 0x30, 0x10, 0x0
+          ; 0000 0000 1110 0000 0001 0000 0011 1000 0000 1100 0000 0100
+          ; 000000001 110000000 010000001 110000000 110000000 100
+          ; 000000001 110000000 010000001 110000000 110000001
+          ; 00000000  1110000   00010000  0011 1000 00001100 0000 1000
+          ;  00        07       08        1c      030      10
+          ; 0x08, 0x0B,
+          ; 0x00, 0x35, 0x0C, 0x11, 0x48, 0x24, 0x43,0x41, 0x22, 0x01, 0x01, 0x00, 0x3B,
+          ; 0000 0000  1010 1100  0011 0000  1000 1000  0010 0001  0100 0010  1100 0010  1000 0010  0100 0100 1000 0000 1000 0000
+          ;  000000001 010110000 110000100 010000010 000101000 010110000 101000001 001000100 100000001 0000000
+         ; db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+      ;    db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+      ;    db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+      ;    db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
 
-         db       0,0,3Bh
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+       ;   db      7,0eh,1Ch;,38h  7,0eh,1Ch,
+        ;  db      255
+        ;  db      7,0eh,1ch, 38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch;38h ,  7,0eh,1Ch
+        ;  db      255
+        ;   db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch,38h,70h,0E0h,0C0h,81h, 03h, 7,0eh,1Ch,38h,70h,0E0h,0C0h ,81h , 03h
+        ;  db      7,0eh,1Ch;,38h
+         db       0,3Bh
 endofgif:
